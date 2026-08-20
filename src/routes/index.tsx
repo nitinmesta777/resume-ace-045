@@ -423,15 +423,8 @@ function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
-                {result.skillsByCategory.map((cat) => {
-                  const missing = (
-                    result.skillsByCategory.find((c) => c.category === cat.category)
-                      ? Object.create(null)
-                      : null
-                  ) as unknown;
-                  void missing;
-                  return (
-                    <div key={cat.category} className="rounded-xl bg-surface-2/40 p-4">
+                {result.skillsByCategory.map((cat) => (
+                  <div key={cat.category} className="rounded-xl bg-surface-2/40 p-4">
                       <div className="mb-2 flex items-center justify-between text-sm">
                         <span className="font-medium">{cat.category}</span>
                         <span className="text-muted-foreground">
@@ -452,9 +445,8 @@ function Home() {
                           </span>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
