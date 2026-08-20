@@ -142,3 +142,89 @@
     color: var(--color-foreground);
   }
 }
+
+@theme inline {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: oklch(0.16 0.025 264);
+  --foreground: oklch(0.96 0.008 250);
+  --surface: oklch(0.21 0.028 264);
+  --surface-2: oklch(0.25 0.03 264);
+  --card: oklch(0.21 0.028 264);
+  --card-foreground: oklch(0.96 0.008 250);
+  --popover: oklch(0.21 0.028 264);
+  --popover-foreground: oklch(0.96 0.008 250);
+  --primary: oklch(0.78 0.16 172);
+  --primary-foreground: oklch(0.18 0.03 200);
+  --secondary: oklch(0.28 0.03 264);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.26 0.028 264);
+  --muted-foreground: oklch(0.72 0.02 260);
+  --accent: oklch(0.7 0.15 250);
+  --accent-foreground: oklch(0.16 0.03 264);
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --success: oklch(0.78 0.16 160);
+  --warning: oklch(0.82 0.15 85);
+  --border: oklch(0.32 0.03 264);
+  --input: oklch(0.3 0.03 264);
+  --ring: oklch(0.78 0.16 172);
+  --chart-1: oklch(0.78 0.16 172);
+  --chart-2: oklch(0.7 0.15 250);
+  --chart-3: oklch(0.82 0.15 85);
+  --chart-4: oklch(0.68 0.18 320);
+  --chart-5: oklch(0.72 0.16 25);
+  --gradient-hero: radial-gradient(1200px 600px at 15% -10%, oklch(0.78 0.16 172 / 0.22), transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, oklch(0.7 0.15 250 / 0.2), transparent 60%);
+  --gradient-accent: linear-gradient(120deg, var(--primary), var(--accent));
+  --shadow-card: 0 18px 40px -22px oklch(0 0 0 / 0.75);
+  --shadow-glow: 0 0 0 1px oklch(0.78 0.16 172 / 0.25), 0 20px 60px -25px oklch(0.78 0.16 172 / 0.45);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-image: var(--gradient-hero);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility glass-card {
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
+}
+
+@utility text-gradient {
+  background-image: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility rise-in {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media print {
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+}
