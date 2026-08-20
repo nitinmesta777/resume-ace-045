@@ -87,6 +87,8 @@ export function prettySkill(skill: string) {
 const STOP_WORDS = new Set(
   ("a an the and or of for to in on with as at by from is are be will we you your our their this that " +
     "have has had must should can able using used strong good work working role job candidate " +
+    "hiring hire developer junior senior full stack basics agile team teams projects project " +
+    "required requirement requirements looking apply position company also want need needs " +
     "experience experienced knowledge skills ability plus etc other others any all more most who what").split(" "),
 );
 
@@ -95,6 +97,7 @@ function keywordsFrom(text: string) {
     .toLowerCase()
     .replace(/[^a-z0-9+#.\s]/g, " ")
     .split(/\s+/)
+    .map((t) => t.replace(/^[.]+|[.]+$/g, ""))
     .filter((t) => t.length > 2 && !STOP_WORDS.has(t) && !/^\d+$/.test(t));
   return Array.from(new Set(tokens));
 }
