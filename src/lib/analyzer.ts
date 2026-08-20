@@ -52,7 +52,7 @@ export interface AnalysisResult {
   sections: { key: SectionKey; label: string; found: boolean }[];
   detectedSkills: DetectedSkill[];
   skillsByCategory: { category: string; found: string[]; total: number }[];
-  contact: { email?: string; phone?: string; linkedin?: string; github?: string };
+  contact: { email?: string | undefined; phone?: string | undefined; linkedin?: string | undefined; github?: string | undefined };
   jd: {
     provided: boolean;
     matchPercent: number;
