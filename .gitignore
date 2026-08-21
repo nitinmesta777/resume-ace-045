@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+backend/resume_analyzer.db
+backend/venv/
+backend/__pycache__/
