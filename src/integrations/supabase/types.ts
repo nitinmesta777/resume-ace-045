@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      saved_analyses: {
+        Row: {
+          breakdown: Json
+          created_at: string
+          file_name: string
+          id: string
+          match_percent: number | null
+          score: number
+          sections_present: Json
+          skills_found: Json
+          skills_missing: Json
+          suggestions: Json
+          user_id: string
+          word_count: number
+        }
+        Insert: {
+          breakdown?: Json
+          created_at?: string
+          file_name: string
+          id?: string
+          match_percent?: number | null
+          score: number
+          sections_present?: Json
+          skills_found?: Json
+          skills_missing?: Json
+          suggestions?: Json
+          user_id: string
+          word_count?: number
+        }
+        Update: {
+          breakdown?: Json
+          created_at?: string
+          file_name?: string
+          id?: string
+          match_percent?: number | null
+          score?: number
+          sections_present?: Json
+          skills_found?: Json
+          skills_missing?: Json
+          suggestions?: Json
+          user_id?: string
+          word_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
