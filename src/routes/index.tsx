@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   BarChart3,
-  BrainCircuit,
   CheckCircle2,
   FileText,
   GraduationCap,
@@ -10,7 +10,7 @@ import {
   Loader2,
   Mail,
   Printer,
-  Sparkles,
+  Save,
   Target,
   Upload,
   XCircle,
@@ -23,6 +23,8 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { ScoreRing } from "@/components/ScoreRing";
 import { extractResumeText } from "@/lib/resume-text";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   analyzeResume,
   prettySkill,
@@ -34,30 +36,42 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI Resume Analyzer | Resume Score, Skill Gaps & JD Match" },
+      { title: "AI Resume Analyzer | Resume Score, Skill Gaps & Job Description Match" },
       {
         name: "description",
         content:
-          "Upload a PDF or DOCX resume to get an instant resume score, detected skills, skill gaps, job-description match percentage and improvement suggestions.",
+          "Upload a PDF or DOCX resume to get an instant 100-point resume score, detected skills, missing sections, job description match percentage and improvement suggestions. Runs in your browser.",
       },
       { property: "og:title", content: "AI Resume Analyzer" },
       {
         property: "og:description",
         content:
-          "Instant resume scoring, skill-gap analysis and job-description matching — a BCA mini project dashboard.",
+          "Check your resume before you apply: a 100-point score, detected skills, missing sections, job description match and improvement suggestions.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Home,
 });
 
+const SCORE_MODEL = [
+  { label: "Contact details", max: 15, detail: "Email, phone, LinkedIn or GitHub found" },
+  { label: "Resume sections", max: 25, detail: "Education, experience, projects, certifications, achievements" },
+  { label: "Technical skills", max: 25, detail: "Recognised skills across six categories" },
+  { label: "Length and structure", max: 15, detail: "Roughly 250 to 900 words reads best" },
+  { label: "Impact and action words", max: 15, detail: "Strong verbs and measurable results" },
+  { label: "Job description alignment", max: 5, detail: "Keyword match with the pasted job role" },
+];
+
 function Home() {
+  const { user } = useAuth();
   const [fileName, setFileName] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [jd, setJd] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +89,7 @@ function Home() {
       setFileName(file.name);
       setResumeText(text);
       setResult(null);
+      setSavedId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to read the file.");
     } finally {
@@ -90,6 +105,7 @@ function Home() {
     setError("");
     const res = analyzeResume(fileName || "pasted-resume.txt", resumeText, jd);
     setResult(res);
+    setSavedId(null);
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
 
@@ -98,7 +114,36 @@ function Home() {
     setResumeText(SAMPLE_RESUME);
     setJd(SAMPLE_JD);
     setResult(null);
+    setSavedId(null);
     setError("");
+  }
+
+  async function saveToAccount() {
+    if (!result || !user || savedId) return;
+    setSaving(true);
+    const { data, error: saveError } = await supabase
+      .from("saved_analyses")
+      .insert({
+        user_id: user.id,
+        file_name: result.fileName,
+        score: result.score,
+        match_percent: result.jd.provided ? result.jd.matchPercent : null,
+        word_count: result.words,
+        sections_present: result.sections.filter((s) => s.found).map((s) => s.label),
+        skills_found: result.detectedSkills.map((s) => s.skill),
+        skills_missing: result.jd.missingKeywords,
+        suggestions: result.suggestions,
+        breakdown: result.scoreBreakdown,
+      })
+      .select("id")
+      .single();
+    setSaving(false);
+    if (saveError) {
+      toast.error("Could not save this analysis. Please try again.");
+      return;
+    }
+    setSavedId(data?.id ?? null);
+    toast.success("Analysis saved to your account.");
   }
 
   function downloadReport() {
@@ -117,7 +162,9 @@ function Home() {
       `DETECTED SKILLS (${result.detectedSkills.length})`,
       "  " + result.detectedSkills.map((s) => prettySkill(s.skill)).join(", "),
       "",
-      result.jd.provided ? `JOB DESCRIPTION MATCH: ${result.jd.matchPercent}%` : "JOB DESCRIPTION: not provided",
+      result.jd.provided
+        ? `JOB DESCRIPTION MATCH: ${result.jd.matchPercent}%`
+        : "JOB DESCRIPTION: not provided",
       result.jd.provided ? "  Missing keywords: " + result.jd.missingKeywords.join(", ") : "",
       "",
       "IMPROVEMENT SUGGESTIONS",
@@ -133,51 +180,50 @@ function Home() {
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="no-print sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <BrainCircuit className="size-6 text-primary" />
-            <span className="font-display text-lg font-bold">AI Resume Analyzer</span>
-          </div>
-          <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
-            <a href="#analyze" className="transition-colors hover:text-foreground">Analyze</a>
-            <a href="#about" className="transition-colors hover:text-foreground">About Project</a>
-          </nav>
-        </div>
-      </header>
-
+    <main>
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-4 pb-10 pt-14 sm:pt-20">
+      <section className="mx-auto max-w-6xl px-4 pb-12 pt-14 sm:pt-20">
         <div className="rise-in max-w-3xl">
-          <Badge variant="secondary" className="mb-5 gap-1.5">
-            <Sparkles className="size-3.5 text-primary" /> BCA 3rd Year Mini Project
+          <Badge variant="secondary" className="mb-5">
+            BCA 3rd Year Mini Project
           </Badge>
-          <h1 className="text-4xl font-bold leading-tight sm:text-6xl">
-            Score your resume with <span className="text-gradient">AI-style analysis</span>
+          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+            Check your resume before you apply
           </h1>
           <p className="mt-5 text-base text-muted-foreground sm:text-lg">
-            Upload a PDF or DOCX resume and instantly get an overall score out of 100, detected
-            skills, skill gaps, a job-description match percentage and personalised improvement
-            suggestions — all in one dashboard.
+            Upload a PDF or DOCX resume and get a clear score out of 100, the skills it detects,
+            sections that are missing, an optional job description match percentage, and specific
+            improvements you can make right away. The analysis runs entirely in your browser.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" asChild>
+            <Button asChild>
               <a href="#analyze">
-                <Upload className="size-4" /> Analyze Resume
+                <Upload className="size-4" /> Analyze a resume
               </a>
             </Button>
-            <Button size="lg" variant="outline" onClick={loadSample}>
-              <FileText className="size-4" /> Load Sample Data
+            <Button variant="outline" onClick={loadSample}>
+              <FileText className="size-4" /> Load the sample resume
             </Button>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-12 grid gap-4 sm:grid-cols-3">
             {[
-              { icon: BarChart3, title: "Resume Score", text: "6-factor scoring model out of 100" },
-              { icon: Target, title: "JD Matching", text: "Keyword match percentage vs the job role" },
-              { icon: Lightbulb, title: "Suggestions", text: "Actionable, personalised improvements" },
+              {
+                icon: BarChart3,
+                title: "Resume score",
+                text: "A six-factor scoring model out of 100 points.",
+              },
+              {
+                icon: Target,
+                title: "Job description match",
+                text: "Compare your resume against a pasted job role.",
+              },
+              {
+                icon: Lightbulb,
+                title: "Improvement suggestions",
+                text: "Rule-based checks that point to concrete fixes.",
+              },
             ].map((f) => (
-              <div key={f.title} className="glass-card rounded-xl p-4">
+              <div key={f.title} className="card-elevated rounded-xl p-4">
                 <f.icon className="mb-2 size-5 text-primary" />
                 <p className="font-medium">{f.title}</p>
                 <p className="text-sm text-muted-foreground">{f.text}</p>
@@ -190,10 +236,10 @@ function Home() {
       {/* Upload + JD */}
       <section id="analyze" className="mx-auto max-w-6xl px-4 py-10">
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="glass-card">
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="size-5 text-primary" /> Step 1 — Upload Resume
+                <Upload className="size-5 text-primary" /> Step 1: Upload Resume
               </CardTitle>
               <CardDescription>Supported formats: PDF, DOCX and TXT.</CardDescription>
             </CardHeader>
@@ -205,7 +251,7 @@ function Home() {
                   e.preventDefault();
                   void handleFile(e.dataTransfer.files[0]);
                 }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface-2/40 px-6 py-10 text-center transition-colors hover:border-primary/60 hover:bg-surface-2/70"
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center transition-colors hover:border-primary/50 hover:bg-muted/70"
               >
                 {loading ? (
                   <Loader2 className="size-8 animate-spin text-primary" />
@@ -213,10 +259,12 @@ function Home() {
                   <Upload className="size-8 text-primary" />
                 )}
                 <p className="font-medium">
-                  {fileName ? fileName : "Click to browse or drag & drop your resume"}
+                  {fileName ? fileName : "Click to browse, or drag and drop your resume"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {resumeText ? `${resumeText.trim().split(/\s+/).length} words extracted` : "PDF · DOCX · TXT"}
+                  {resumeText
+                    ? `${resumeText.trim().split(/\s+/).filter(Boolean).length} words extracted`
+                    : "Your file stays on your device"}
                 </p>
               </div>
               <input
@@ -229,16 +277,16 @@ function Home() {
               <Textarea
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                placeholder="…or paste your resume text here"
-                className="min-h-28 bg-surface-2/40"
+                placeholder="Or paste your resume text here"
+                className="min-h-28 bg-muted/40"
               />
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="size-5 text-primary" /> Step 2 — Job Description (optional)
+                <Target className="size-5 text-primary" /> Step 2: Job Description (optional)
               </CardTitle>
               <CardDescription>Paste the job description to get a match percentage.</CardDescription>
             </CardHeader>
@@ -246,15 +294,15 @@ function Home() {
               <Textarea
                 value={jd}
                 onChange={(e) => setJd(e.target.value)}
-                placeholder="Paste the job description / required skills here…"
-                className="min-h-52 bg-surface-2/40"
+                placeholder="Paste the job description or required skills here"
+                className="min-h-52 bg-muted/40"
               />
               <div className="flex flex-wrap gap-3">
                 <Button onClick={runAnalysis} disabled={loading}>
-                  <BrainCircuit className="size-4" /> Analyze Now
+                  <BarChart3 className="size-4" /> Analyze Now
                 </Button>
                 <Button variant="ghost" onClick={() => setJd(SAMPLE_JD)}>
-                  Use sample job description
+                  Use the sample job description
                 </Button>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
@@ -269,13 +317,27 @@ function Home() {
           <div className="rise-in space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold sm:text-3xl">Analysis Dashboard</h2>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Analysis Dashboard</h2>
                 <p className="text-sm text-muted-foreground">
                   {result.fileName} · {result.words} words ·{" "}
                   {new Date(result.createdAt).toLocaleString()}
                 </p>
               </div>
-              <div className="no-print flex gap-2">
+              <div className="no-print flex flex-wrap gap-2">
+                {user ? (
+                  <Button variant="outline" onClick={() => void saveToAccount()} disabled={saving || Boolean(savedId)}>
+                    {savedId ? (
+                      <CheckCircle2 className="size-4 text-success" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {savedId ? "Saved" : saving ? "Saving…" : "Save to my account"}
+                  </Button>
+                ) : (
+                  <Button variant="outline" asChild>
+                    <Link to="/auth">Sign in to save your analyses</Link>
+                  </Button>
+                )}
                 <Button variant="outline" onClick={downloadReport}>
                   <FileText className="size-4" /> Download Report
                 </Button>
@@ -286,7 +348,7 @@ function Home() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <Card className="glass-card lg:col-span-1">
+              <Card className="card-elevated lg:col-span-1">
                 <CardHeader>
                   <CardTitle>Overall Resume Score</CardTitle>
                 </CardHeader>
@@ -294,15 +356,15 @@ function Home() {
                   <ScoreRing value={result.score} />
                   <p className="text-center text-sm text-muted-foreground">
                     {result.score >= 80
-                      ? "Excellent — recruiter ready."
+                      ? "Strong resume. It covers the essentials recruiters look for."
                       : result.score >= 60
-                        ? "Good, but a few sections need polish."
-                        : "Needs improvement — follow the suggestions below."}
+                        ? "Good base, but a few sections still need polish."
+                        : "Needs work. Follow the suggestions below."}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card lg:col-span-2">
+              <Card className="card-elevated lg:col-span-2">
                 <CardHeader>
                   <CardTitle>Score Breakdown</CardTitle>
                   <CardDescription>How each factor contributed to your score.</CardDescription>
@@ -325,7 +387,7 @@ function Home() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <Card className="glass-card">
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Mail className="size-5 text-primary" /> Contact Information
@@ -355,7 +417,7 @@ function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <GraduationCap className="size-5 text-primary" /> Resume Sections
@@ -375,7 +437,7 @@ function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="size-5 text-primary" /> Job Description Match
@@ -396,7 +458,7 @@ function Home() {
                             ))
                           ) : (
                             <span className="text-sm text-muted-foreground">
-                              Great! Nothing important is missing.
+                              Nothing important is missing.
                             </span>
                           )}
                         </div>
@@ -412,10 +474,10 @@ function Home() {
               </Card>
             </div>
 
-            <Card className="glass-card">
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="size-5 text-primary" /> Skills & Skill Gaps
+                  <BarChart3 className="size-5 text-primary" /> Skills and Skill Gaps
                 </CardTitle>
                 <CardDescription>
                   {result.detectedSkills.length} skills detected across{" "}
@@ -424,33 +486,33 @@ function Home() {
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
                 {result.skillsByCategory.map((cat) => (
-                  <div key={cat.category} className="rounded-xl bg-surface-2/40 p-4">
-                      <div className="mb-2 flex items-center justify-between text-sm">
-                        <span className="font-medium">{cat.category}</span>
-                        <span className="text-muted-foreground">
-                          {cat.found.length}/{cat.total}
+                  <div key={cat.category} className="rounded-lg bg-muted/40 p-4">
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-medium">{cat.category}</span>
+                      <span className="text-muted-foreground">
+                        {cat.found.length}/{cat.total}
+                      </span>
+                    </div>
+                    <Progress value={(cat.found.length / cat.total) * 100} className="mb-3" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {cat.found.length ? (
+                        cat.found.map((s) => (
+                          <Badge key={s} variant="secondary" className="bg-primary/10 text-primary">
+                            {prettySkill(s)}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          No skills detected in this category.
                         </span>
-                      </div>
-                      <Progress value={(cat.found.length / cat.total) * 100} className="mb-3" />
-                      <div className="flex flex-wrap gap-1.5">
-                        {cat.found.length ? (
-                          cat.found.map((s) => (
-                            <Badge key={s} className="bg-primary/15 text-primary" variant="secondary">
-                              {prettySkill(s)}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            No skills detected in this category.
-                          </span>
-                        )}
-                      </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </CardContent>
             </Card>
 
-            <Card className="glass-card">
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lightbulb className="size-5 text-primary" /> Improvement Suggestions
@@ -460,7 +522,7 @@ function Home() {
                 <ol className="space-y-3">
                   {result.suggestions.map((s, i) => (
                     <li key={s} className="flex gap-3 text-sm">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
                         {i + 1}
                       </span>
                       <span className="text-muted-foreground">{s}</span>
@@ -473,49 +535,114 @@ function Home() {
         </section>
       )}
 
-      {/* About */}
-      <section id="about" className="mx-auto max-w-6xl px-4 pb-20">
-        <Card className="glass-card">
+      {/* Scoring model */}
+      <section id="scoring" className="mx-auto max-w-6xl px-4 py-10">
+        <Card className="card-elevated">
           <CardHeader>
-            <CardTitle className="text-2xl">About the Project</CardTitle>
+            <CardTitle className="text-2xl tracking-tight">How the 100-point score works</CardTitle>
             <CardDescription>
-              AI Resume Analyzer — BCA 3rd Year Mini Project
+              Every resume is checked against the same six factors. The points are added up to give
+              the overall score.
             </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y rounded-lg border">
+              {SCORE_MODEL.map((f) => (
+                <div key={f.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-medium">{f.label}</p>
+                    <p className="text-xs text-muted-foreground">{f.detail}</p>
+                  </div>
+                  <span className="shrink-0 font-semibold text-primary">{f.max} pts</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* About */}
+      <section id="about" className="mx-auto max-w-6xl px-4 pb-16">
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle className="text-2xl tracking-tight">About the project</CardTitle>
+            <CardDescription>AI Resume Analyzer, a BCA 3rd year mini project</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
                 This project helps students and job seekers evaluate their resume before applying.
-                The resume file is parsed to plain text, then a rule-based analysis engine detects
-                skills, sections and contact details, computes a weighted score out of 100 and
-                compares the resume against a job description using keyword matching.
+                The resume file is parsed to plain text in the browser, then a rule-based analysis
+                engine detects skills, sections and contact details, computes a weighted score out
+                of 100, and compares the resume against a pasted job description using keyword
+                matching.
               </p>
               <p>
-                Everything runs in the browser, so no resume data is uploaded to any server —
-                making it privacy-friendly and easy to demonstrate on a college projector.
+                The analysis runs in the browser, so your resume file and text are never uploaded to
+                a server. If you create an account and choose to save an analysis, only the summary
+                of that analysis (file name, score, detected skills, missing keywords and
+                suggestions) is stored in the project database, visible only to you.
+              </p>
+              <p>
+                The repository also includes an optional Python Flask backend with a SQLite database
+                that can run the same analysis server-side for a demonstration of a client-server
+                architecture.
               </p>
             </div>
             <div className="space-y-3">
-              <div className="rounded-xl bg-surface-2/40 p-4">
-                <p className="mb-1 font-medium">Modules</p>
-                <p className="text-sm text-muted-foreground">
-                  Resume upload · Text extraction · Skill detection · Score engine · JD matching ·
-                  Suggestion generator · Report export
-                </p>
+              <div className="rounded-lg bg-muted/40 p-4 text-sm">
+                <p className="mb-1 font-medium text-foreground">Modules</p>
+                <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+                  <li>Text extraction for PDF, DOCX and TXT resumes</li>
+                  <li>Skill detection across six skill categories</li>
+                  <li>Section, contact and impact checks</li>
+                  <li>Weighted scoring engine out of 100 points</li>
+                  <li>Job description keyword matching</li>
+                  <li>Account with saved analysis history</li>
+                </ul>
               </div>
-              <div className="rounded-xl bg-surface-2/40 p-4">
-                <p className="mb-1 font-medium">Technology used</p>
-                <p className="text-sm text-muted-foreground">
-                  React + TypeScript (UI), Tailwind CSS (design system), pdf.js and Mammoth.js
-                  (open-source PDF/DOCX parsing), TanStack Start (routing & build).
+              <div className="rounded-lg bg-muted/40 p-4 text-sm">
+                <p className="mb-1 font-medium text-foreground">Built with</p>
+                <p className="text-muted-foreground">
+                  React and TypeScript frontend, Tailwind CSS design system, account and saved
+                  analyses handled by a hosted backend, plus an optional Flask and SQLite backend in
+                  the repository.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <p className="mt-8 text-center text-sm text-muted-foreground">
-          AI Resume Analyzer · Mini project demo · Built with open-source libraries
-        </p>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="no-print mx-auto max-w-6xl px-4 pb-20">
+        <div className="card-elevated flex flex-col items-start justify-between gap-4 rounded-xl p-6 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-display text-xl font-semibold tracking-tight">
+              Ready to see your score?
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Start with the sample resume, or upload your own. Create an account to keep a history
+              of your analyses.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {user ? (
+              <Button asChild>
+                <Link to="/dashboard">Go to My Analyses</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild>
+                  <Link to="/auth/sign-up">Create an account</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href="#analyze">Analyze without signing in</a>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       </section>
     </main>
   );
