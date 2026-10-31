@@ -1,4 +1,4 @@
-# Resume Insight Pro
+# AI Resume Analyzer 
 
 Create a complete responsive web application called “AI Resume Analyzer” as a BCA 3rd-year mini project.
 
