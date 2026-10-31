@@ -192,7 +192,7 @@ export function analyzeResume(
     suggestions.push("Start with a 2–3 line career objective mentioning your target role.");
   sections
     .filter((s) => !s.found && !["contact", "summary"].includes(s.key))
-    .forEach((s) => suggestions.push(`Add a clear "${s.label}" section — it is missing right now.`));
+    .forEach((s) => suggestions.push(`Add a clear "${s.label}" section. It is missing right now.`));
   if (detectedSkills.length < 8)
     suggestions.push("List more relevant technical skills grouped by category (languages, web, database, tools).");
   if (verbHits < 4)
