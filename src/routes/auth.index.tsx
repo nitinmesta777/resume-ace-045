@@ -11,9 +11,11 @@ import { useAuth } from "@/lib/auth";
 import { safeRedirect } from "@/lib/redirect";
 
 export const Route = createFileRoute("/auth/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
+    const raw = search["redirect"];
+    if (typeof raw === "string") return { redirect: raw };
+    return {};
+  },
   component: SignInPage,
 });
 
@@ -31,7 +33,7 @@ function authErrorMessage(error: AuthError): string {
 }
 
 function SignInPage() {
-  const { redirect } = Route.useSearch();
+  const { redirect } = Route.useSearch() as { redirect?: string };
   const { user } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
