@@ -31,7 +31,7 @@ function TermsPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Terms and Conditions</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Effective date: 29 October 2026. These terms govern your use of the AI Resume Analyzer (a
+        Effective date: 31 October 2026. These terms govern your use of the AI Resume Analyzer (a
         BCA mini project).
       </p>
 

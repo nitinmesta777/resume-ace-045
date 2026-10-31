@@ -31,7 +31,7 @@ function PrivacyPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Effective date: 29 October 2026. This policy describes how the AI Resume Analyzer (a BCA
+        Effective date: 31 October 2026. This policy describes how the AI Resume Analyzer (a BCA
         mini project) handles your information.
       </p>
 

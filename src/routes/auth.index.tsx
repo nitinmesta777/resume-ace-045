@@ -31,7 +31,7 @@ function authErrorMessage(error: AuthError): string {
 }
 
 function SignInPage() {
-  const { redirect } = Route.useSearch();
+  const { redirect } = Route.useSearch() as { redirect?: string };
   const { user } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
