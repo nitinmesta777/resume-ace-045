@@ -13,7 +13,8 @@ import { safeRedirect } from "@/lib/redirect";
 export const Route = createFileRoute("/auth/")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
     const raw = search["redirect"];
-    return { redirect: typeof raw === "string" ? raw : undefined };
+    if (typeof raw === "string") return { redirect: raw };
+    return {};
   },
   component: SignInPage,
 });
