@@ -199,7 +199,7 @@ export function analyzeResume(
     suggestions.push("Rewrite bullet points with action verbs like Developed, Implemented, Optimized.");
   if (!/\d+%|\d+\s*(users|projects|hours)/.test(text))
     suggestions.push("Quantify your achievements, e.g. \"improved load time by 40%\" or \"served 500+ users\".");
-  if (words < 250) suggestions.push("Your resume looks short — expand project descriptions with 2–3 bullets each.");
+  if (words < 250) suggestions.push("Your resume looks short. Expand project descriptions with 2 to 3 bullets each.");
   if (words > 900) suggestions.push("Trim your resume to 1–2 pages by removing repetitive details.");
   if (jdProvided && matchPercent < 60)
     suggestions.push(
